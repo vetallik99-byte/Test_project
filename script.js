@@ -239,7 +239,7 @@
   }
 
   function onCellClick(evt) {
-    if (roundOver) return;
+    if (roundOver) { beginRound(); return; }
     const btn = evt.currentTarget;
     const idx = parseInt(btn.dataset.index, 10);
     if (revealed.has(idx)) return;
@@ -305,6 +305,12 @@
       return;
     }
   }
+
+  // Allow clicking gaps in the grid to start a new round after round over
+  gridEl.addEventListener('click', (e) => {
+    if (!roundOver) return;
+    if (e.target === gridEl) beginRound();
+  });
 
   function collectAndEnd(auto = false) {
     if (totalWin > 0) {
