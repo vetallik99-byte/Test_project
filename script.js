@@ -167,6 +167,18 @@
       bottom.className = 'bottom-label cell-mult';
       bottom.textContent = multLabel || '';
 
+      // If global is active, apply strike + glow (but keep base color until strike)
+      if (globalStack > 1 && amountValue && amountValue > 0) {
+        btn.classList.add('strike');
+        amount.classList.add('value-glow');
+        bottom.classList.add('value-glow');
+        setTimeout(() => {
+          btn.classList.remove('strike');
+          amount.classList.remove('value-glow');
+          bottom.classList.remove('value-glow');
+        }, 950);
+      }
+
       wrapper.appendChild(amount);
       wrapper.appendChild(bottom);
       inner.appendChild(wrapper);
