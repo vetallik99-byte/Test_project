@@ -2,13 +2,13 @@
   const GRID_SIZE = 5;
   const TOTAL_CELLS = GRID_SIZE * GRID_SIZE; // 25
 
-  // Distribution per spec (base layout sums to 25)
+  // Distribution per spec (fixed, sums to 25)
   const COUNTS = {
-    BOMB: 6,
-    MUL_0_5: 5,
-    MUL_1_5: 10, // may be replaced by 1 with second global 20% chance
-    MUL_2: 3,
-    WIN_X2: 1,   // guaranteed global x2 tile
+    BOMB: 5,
+    MUL_0_5: 4,
+    MUL_1_5: 9,
+    MUL_2: 4,
+    WIN_X2: 3,   // three global x2 tiles
   };
 
   const CELL_LABEL = {
@@ -63,14 +63,7 @@
     items.push(...Array(COUNTS.MUL_0_5).fill('MUL_0_5'));
     items.push(...Array(COUNTS.MUL_1_5).fill('MUL_1_5'));
     items.push(...Array(COUNTS.MUL_2).fill('MUL_2'));
-    // Guaranteed one global x2
-    items.push('WIN_X2');
-
-    // 20% chance to add a second global by replacing one 1.5x
-    if (Math.random() < 0.2) {
-      const idx = items.findIndex((t) => t === 'MUL_1_5');
-      if (idx !== -1) items[idx] = 'WIN_X2';
-    }
+    items.push(...Array(COUNTS.WIN_X2).fill('WIN_X2'));
 
     if (items.length !== TOTAL_CELLS) {
       console.warn('Grid counts do not add up to 25. Current:', items.length);
@@ -284,7 +277,7 @@
       setMessage(`+${formatMoney(gain)} added (${base}x × global ${globalStack}x).`);
     } else if (type === 'WIN_X2') {
       // Global multiplier stack increases for future additive gains only
-      globalStack = Math.min(4, globalStack * 2);
+      globalStack = Math.min(8, globalStack * 2);
       renderCell(btn, type, false);
       setMessage(`Global multiplier increased! Now ×${globalStack}.`);
       // Turn on energized UI when at least ×2
@@ -299,7 +292,7 @@
 
     updateHUD();
 
-    const safeCells = TOTAL_CELLS - COUNTS.BOMB; // 19 safe cells
+    const safeCells = TOTAL_CELLS - COUNTS.BOMB; // 20 safe cells
     if (revealed.size >= safeCells) {
       collectAndEnd(true);
       return;
