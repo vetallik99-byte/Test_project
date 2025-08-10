@@ -1,15 +1,15 @@
 (function () {
-  const GRID_SIZE = 5;
-  const TOTAL_CELLS = GRID_SIZE * GRID_SIZE; // 25
+  const GRID_SIZE = 4;
+  const TOTAL_CELLS = GRID_SIZE * GRID_SIZE; // 16
 
-  // Distribution counts per spec
+  // Distribution counts per spec (sum to 16)
   const COUNTS = {
-    BOMB: 4,
-    MUL_0_5: 5, // adds bet * 0.5 to total win
-    MUL_1_5: 7, // adds bet * 1.5 to total win
-    MUL_2: 5,   // assumption: adds bet * 2 to total win
-    WIN_X2: 3,  // multiplies total win by 2
-    WIN_X4: 1,  // multiplies total win by 4
+    BOMB: 3,
+    MUL_0_5: 4, // neutral
+    MUL_1_5: 4, // gold
+    MUL_2: 3,   // gold
+    WIN_X2: 1,  // light blue lightning
+    WIN_X4: 1,  // light blue lightning
   };
 
   const CELL_LABEL = {
@@ -23,11 +23,11 @@
 
   const CELL_CLASS = {
     BOMB: 'bomb',
-    MUL_0_5: 'mult',
-    MUL_1_5: 'mult',
-    MUL_2: 'mult',
-    WIN_X2: 'winmult',
-    WIN_X4: 'winmult',
+    MUL_0_5: 'neutral',
+    MUL_1_5: 'gold',
+    MUL_2: 'gold',
+    WIN_X2: 'bonus',
+    WIN_X4: 'bonus',
   };
 
   // State
@@ -69,7 +69,7 @@
     items.push(...Array(COUNTS.WIN_X2).fill('WIN_X2'));
     items.push(...Array(COUNTS.WIN_X4).fill('WIN_X4'));
     if (items.length !== TOTAL_CELLS) {
-      console.warn('Grid counts do not add up to 25. Current:', items.length);
+      console.warn('Grid counts do not add up to 16. Current:', items.length);
     }
     return shuffle(items);
   }
@@ -91,6 +91,7 @@
       btn.addEventListener('click', onCellClick);
       gridEl.appendChild(btn);
     }
+    fitGridToMain();
   }
 
   function updateHUD() {
@@ -167,21 +168,18 @@
     const idx = parseInt(btn.dataset.index, 10);
     if (revealed.has(idx)) return;
 
-    // Check balance before charging
     if (balance < betPerClick) {
       setMessage('Insufficient balance for this bet.', 'warn');
       updateHUD();
       return;
     }
 
-    // Deduct bet
     balance -= betPerClick;
 
     const type = grid[idx];
     revealed.add(idx);
     renderCell(btn, type, false);
 
-    // Resolve outcome
     if (type === 'BOMB') {
       totalWin = 0.0;
       endRound('Boom! You hit a bomb and lost your total win.');
@@ -208,9 +206,8 @@
     updateHUD();
 
     // Auto-collect if all safe cells revealed
-    const safeCells = TOTAL_CELLS - COUNTS.BOMB; // 21
+    const safeCells = TOTAL_CELLS - COUNTS.BOMB; // 13
     if (revealed.size >= safeCells) {
-      // But if somehow a bomb was clicked earlier we'd be out
       collectAndEnd(true);
       return;
     }
@@ -219,7 +216,10 @@
   function collectAndEnd(auto = false) {
     if (totalWin > 0) {
       balance += totalWin;
-      setMessage(auto ? `All safe cells revealed. Collected ${formatMoney(totalWin)}!` : `Collected ${formatMoney(totalWin)}.` , 'success');
+      setMessage(
+        auto ? `All safe cells revealed. Collected ${formatMoney(totalWin)}!` : `Collected ${formatMoney(totalWin)}.`,
+        'success'
+      );
       totalWin = 0.0;
     } else {
       setMessage('Nothing to collect.');
@@ -227,16 +227,41 @@
     endRound();
   }
 
+  // Grid fit to viewport/main area
+  function fitGridToMain() {
+    const mainEl = document.querySelector('main');
+    if (!mainEl) return;
+    const style = getComputedStyle(gridEl);
+    const gap = parseInt(style.gap || '10', 10) || 10;
+    const cols = GRID_SIZE;
+    const rows = GRID_SIZE;
+    const rect = mainEl.getBoundingClientRect();
+    const maxWidth = rect.width;
+    const maxHeight = rect.height;
+    const cellByWidth = Math.floor((maxWidth - (cols - 1) * gap) / cols);
+    const cellByHeight = Math.floor((maxHeight - (rows - 1) * gap) / rows);
+    const cellSize = Math.max(0, Math.min(cellByWidth, cellByHeight));
+
+    const gridWidth = cellSize * cols + (cols - 1) * gap;
+    const gridHeight = cellSize * rows + (rows - 1) * gap;
+    gridEl.style.width = `${gridWidth}px`;
+    gridEl.style.height = `${gridHeight}px`;
+  }
+
+  window.addEventListener('resize', fitGridToMain);
+
   // Controls
   betPlusEl.addEventListener('click', () => {
     const step = parseFloat(betInputEl.step || '0.10');
     betPerClick = Math.min(999999, roundToTwo(betPerClick + step));
     updateHUD();
+    fitGridToMain();
   });
   betMinusEl.addEventListener('click', () => {
     const step = parseFloat(betInputEl.step || '0.10');
     betPerClick = Math.max(minBet(), roundToTwo(betPerClick - step));
     updateHUD();
+    fitGridToMain();
   });
   betInputEl.addEventListener('change', () => {
     const val = parseFloat(betInputEl.value);
@@ -244,6 +269,7 @@
       betPerClick = roundToTwo(val);
     }
     updateHUD();
+    fitGridToMain();
   });
 
   function roundToTwo(n) { return Math.round(n * 100) / 100; }
