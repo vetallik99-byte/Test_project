@@ -104,9 +104,13 @@ main { flex: 1; display: grid; place-items: center; min-height: 0; }
 .cell-content {
   position: absolute; inset: 10px; display: grid; grid-template-rows: 1fr auto;
   align-items: center; justify-items: center; width: calc(100% - 20px); height: calc(100% - 20px); place-items: center;
+  text-align: center;
 }
-.cell-amount { font-size: clamp(16px, 3.2vw, 26px); font-weight: 800; justify-self: center; align-self: center; }
-.cell-mult { font-size: 12px; opacity: 0.85; letter-spacing: 0.6px; justify-self: center; }
+.cell-amount {
+  font-size: clamp(12px, calc(var(--cell-size, 64px) * 0.26), 24px); font-weight: 800; justify-self: center; align-self: center; line-height: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.cell-mult { font-size: 12px; opacity: 0.85; letter-spacing: 0.6px; justify-self: center; white-space: nowrap; }
 
 @keyframes revealPop { 0% { transform: scale(0.92); filter: brightness(0.9); opacity: 0; } 100% { transform: scale(1); filter: brightness(1); opacity: 1; } }
 .cell.open .cell-content { animation: revealPop 160ms ease-out; }

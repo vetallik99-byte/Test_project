@@ -305,6 +305,8 @@
     const gridHeight = cellSize * rows + (rows - 1) * gap;
     gridEl.style.width = `${gridWidth}px`;
     gridEl.style.height = `${gridHeight}px`;
+    // Set CSS var for responsive font sizing
+    gridEl.style.setProperty('--cell-size', `${cellSize}px`);
   }
 
   window.addEventListener('resize', fitGridToMain);
