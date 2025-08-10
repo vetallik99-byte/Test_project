@@ -37,6 +37,7 @@
   let roundOver = false;
   let revealed = new Set();
   let grid = [];
+  let isAnimatingTotalWin = false;
 
   // Elements
   const gridEl = document.getElementById('grid');
@@ -96,7 +97,9 @@
 
   function updateHUD() {
     balanceEl.textContent = formatMoney(balance);
-    totalWinEl.textContent = formatMoney(totalWin);
+    if (!isAnimatingTotalWin) {
+      totalWinEl.textContent = formatMoney(totalWin);
+    }
     betInputEl.value = betPerClick.toFixed(2);
 
     const canPlay = !roundOver && balance >= minBet();
@@ -146,20 +149,68 @@
     });
   }
 
-  function renderCell(btn, type, alreadyRevealed) {
+  function renderCell(btn, type, alreadyRevealed, amountValue, multLabel) {
     btn.classList.add('open');
     btn.classList.add(CELL_CLASS[type]);
     const inner = btn.querySelector('.inner');
-    inner.textContent = CELL_LABEL[type];
+
+    // Build content per type
+    if (type === 'BOMB') {
+      inner.textContent = CELL_LABEL[type];
+    } else if (type === 'WIN_X2' || type === 'WIN_X4') {
+      inner.textContent = CELL_LABEL[type];
+    } else {
+      inner.textContent = '';
+      const wrapper = document.createElement('div');
+      wrapper.className = 'cell-content';
+
+      const amount = document.createElement('div');
+      amount.className = 'cell-amount';
+      amount.textContent = formatMoney(amountValue || 0);
+
+      const bottom = document.createElement('div');
+      bottom.className = 'bottom-label cell-mult';
+      bottom.textContent = multLabel || '';
+
+      wrapper.appendChild(amount);
+      wrapper.appendChild(bottom);
+      inner.appendChild(wrapper);
+    }
+
     if (!alreadyRevealed) {
       btn.animate(
         [
-          { transform: 'scale(0.95)', filter: 'brightness(0.9)' },
+          { transform: 'scale(0.96)', filter: 'brightness(0.9)' },
           { transform: 'scale(1)', filter: 'brightness(1)' },
         ],
         { duration: 140, easing: 'ease-out' }
       );
     }
+  }
+
+  function animateTotalWinChange(fromVal, toVal) {
+    const duration = 500;
+    const start = performance.now();
+    totalWinEl.classList.add('totalwin-pulse');
+    isAnimatingTotalWin = true;
+
+    function step(now) {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = t * (2 - t); // easeOutQuad
+      const val = fromVal + (toVal - fromVal) * eased;
+      totalWinEl.textContent = formatMoney(val);
+      if (t < 1) {
+        requestAnimationFrame(step);
+      } else {
+        totalWinEl.textContent = formatMoney(toVal);
+        totalWinEl.classList.remove('totalwin-pulse');
+        isAnimatingTotalWin = false;
+        // Ensure HUD reflects final value if anything else changed during animation
+        updateHUD();
+      }
+    }
+
+    requestAnimationFrame(step);
   }
 
   function onCellClick(evt) {
@@ -178,29 +229,44 @@
 
     const type = grid[idx];
     revealed.add(idx);
-    renderCell(btn, type, false);
+
+    const prevTotal = totalWin;
 
     if (type === 'BOMB') {
+      renderCell(btn, type, false);
       totalWin = 0.0;
       endRound('Boom! You hit a bomb and lost your total win.');
       return;
     }
 
     if (type === 'MUL_0_5') {
-      totalWin += betPerClick * 0.5;
-      setMessage('Added 0.5x of your bet to total win.');
+      const gain = betPerClick * 0.5;
+      totalWin += gain;
+      renderCell(btn, type, false, gain, CELL_LABEL[type]);
+      setMessage(`+${formatMoney(gain)} (0.5x of bet) added to total win.`);
     } else if (type === 'MUL_1_5') {
-      totalWin += betPerClick * 1.5;
-      setMessage('Added 1.5x of your bet to total win.');
+      const gain = betPerClick * 1.5;
+      totalWin += gain;
+      renderCell(btn, type, false, gain, CELL_LABEL[type]);
+      setMessage(`+${formatMoney(gain)} (1.5x of bet) added to total win.`);
     } else if (type === 'MUL_2') {
-      totalWin += betPerClick * 2.0;
-      setMessage('Added 2x of your bet to total win.');
+      const gain = betPerClick * 2.0;
+      totalWin += gain;
+      renderCell(btn, type, false, gain, CELL_LABEL[type]);
+      setMessage(`+${formatMoney(gain)} (2x of bet) added to total win.`);
     } else if (type === 'WIN_X2') {
       totalWin *= 2.0;
+      renderCell(btn, type, false);
       setMessage('Total win doubled!');
     } else if (type === 'WIN_X4') {
       totalWin *= 4.0;
+      renderCell(btn, type, false);
       setMessage('Total win x4!');
+    }
+
+    // Animate total win count-up if changed
+    if (totalWin !== prevTotal) {
+      animateTotalWinChange(prevTotal, totalWin);
     }
 
     updateHUD();
@@ -215,9 +281,10 @@
 
   function collectAndEnd(auto = false) {
     if (totalWin > 0) {
+      const collected = totalWin;
       balance += totalWin;
       setMessage(
-        auto ? `All safe cells revealed. Collected ${formatMoney(totalWin)}!` : `Collected ${formatMoney(totalWin)}.`,
+        auto ? `All safe cells revealed. Collected ${formatMoney(collected)}!` : `Collected ${formatMoney(collected)}.`,
         'success'
       );
       totalWin = 0.0;
