@@ -1,15 +1,15 @@
 (function () {
-  const GRID_SIZE = 5;
-  const TOTAL_CELLS = GRID_SIZE * GRID_SIZE; // 25
+  const GRID_SIZE = 4;
+  const TOTAL_CELLS = GRID_SIZE * GRID_SIZE; // 16
 
-  // Distribution counts per spec
+  // Distribution counts per spec (sum to 16)
   const COUNTS = {
-    BOMB: 4,
-    MUL_0_5: 5, // adds bet * 0.5 to total win
-    MUL_1_5: 7, // adds bet * 1.5 to total win
-    MUL_2: 5,   // assumption: adds bet * 2 to total win
-    WIN_X2: 3,  // multiplies total win by 2
-    WIN_X4: 1,  // multiplies total win by 4
+    BOMB: 3,
+    MUL_0_5: 4, // neutral
+    MUL_1_5: 4, // gold
+    MUL_2: 3,   // gold
+    WIN_X2: 1,  // light blue lightning
+    WIN_X4: 1,  // light blue lightning
   };
 
   const CELL_LABEL = {
@@ -23,11 +23,11 @@
 
   const CELL_CLASS = {
     BOMB: 'bomb',
-    MUL_0_5: 'mult',
-    MUL_1_5: 'mult',
-    MUL_2: 'mult',
-    WIN_X2: 'winmult',
-    WIN_X4: 'winmult',
+    MUL_0_5: 'neutral',
+    MUL_1_5: 'gold',
+    MUL_2: 'gold',
+    WIN_X2: 'bonus',
+    WIN_X4: 'bonus',
   };
 
   // State
@@ -37,6 +37,7 @@
   let roundOver = false;
   let revealed = new Set();
   let grid = [];
+  let isAnimatingTotalWin = false;
 
   // Elements
   const gridEl = document.getElementById('grid');
@@ -50,9 +51,7 @@
   const newRoundBtn = document.getElementById('newRoundBtn');
 
   // Utils
-  function formatMoney(val) {
-    return `$${val.toFixed(2)}`;
-  }
+  function formatMoney(val) { return `$${val.toFixed(2)}`; }
   function shuffle(array) {
     for (let i = array.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -69,7 +68,7 @@
     items.push(...Array(COUNTS.WIN_X2).fill('WIN_X2'));
     items.push(...Array(COUNTS.WIN_X4).fill('WIN_X4'));
     if (items.length !== TOTAL_CELLS) {
-      console.warn('Grid counts do not add up to 25. Current:', items.length);
+      console.warn('Grid counts do not add up to 16. Current:', items.length);
     }
     return shuffle(items);
   }
@@ -91,11 +90,12 @@
       btn.addEventListener('click', onCellClick);
       gridEl.appendChild(btn);
     }
+    fitGridToMain();
   }
 
   function updateHUD() {
     balanceEl.textContent = formatMoney(balance);
-    totalWinEl.textContent = formatMoney(totalWin);
+    if (!isAnimatingTotalWin) totalWinEl.textContent = formatMoney(totalWin);
     betInputEl.value = betPerClick.toFixed(2);
 
     const canPlay = !roundOver && balance >= minBet();
@@ -145,20 +145,66 @@
     });
   }
 
-  function renderCell(btn, type, alreadyRevealed) {
+  function renderCell(btn, type, alreadyRevealed, amountValue, multLabel) {
     btn.classList.add('open');
     btn.classList.add(CELL_CLASS[type]);
     const inner = btn.querySelector('.inner');
-    inner.textContent = CELL_LABEL[type];
+
+    if (type === 'BOMB') {
+      inner.textContent = CELL_LABEL[type];
+    } else if (type === 'WIN_X2' || type === 'WIN_X4') {
+      inner.textContent = CELL_LABEL[type];
+    } else {
+      inner.textContent = '';
+      const wrapper = document.createElement('div');
+      wrapper.className = 'cell-content';
+
+      const amount = document.createElement('div');
+      amount.className = 'cell-amount';
+      amount.textContent = formatMoney(amountValue || 0);
+
+      const bottom = document.createElement('div');
+      bottom.className = 'bottom-label cell-mult';
+      bottom.textContent = multLabel || '';
+
+      wrapper.appendChild(amount);
+      wrapper.appendChild(bottom);
+      inner.appendChild(wrapper);
+    }
+
     if (!alreadyRevealed) {
       btn.animate(
         [
-          { transform: 'scale(0.95)', filter: 'brightness(0.9)' },
+          { transform: 'scale(0.96)', filter: 'brightness(0.9)' },
           { transform: 'scale(1)', filter: 'brightness(1)' },
         ],
         { duration: 140, easing: 'ease-out' }
       );
     }
+  }
+
+  function animateTotalWinChange(fromVal, toVal) {
+    const duration = 500;
+    const start = performance.now();
+    totalWinEl.classList.add('totalwin-pulse');
+    isAnimatingTotalWin = true;
+
+    function step(now) {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = t * (2 - t); // easeOutQuad
+      const val = fromVal + (toVal - fromVal) * eased;
+      totalWinEl.textContent = formatMoney(val);
+      if (t < 1) {
+        requestAnimationFrame(step);
+      } else {
+        totalWinEl.textContent = formatMoney(toVal);
+        totalWinEl.classList.remove('totalwin-pulse');
+        isAnimatingTotalWin = false;
+        updateHUD();
+      }
+    }
+
+    requestAnimationFrame(step);
   }
 
   function onCellClick(evt) {
@@ -167,50 +213,59 @@
     const idx = parseInt(btn.dataset.index, 10);
     if (revealed.has(idx)) return;
 
-    // Check balance before charging
     if (balance < betPerClick) {
       setMessage('Insufficient balance for this bet.', 'warn');
       updateHUD();
       return;
     }
 
-    // Deduct bet
     balance -= betPerClick;
 
     const type = grid[idx];
     revealed.add(idx);
-    renderCell(btn, type, false);
 
-    // Resolve outcome
+    const prevTotal = totalWin;
+
     if (type === 'BOMB') {
+      renderCell(btn, type, false);
       totalWin = 0.0;
       endRound('Boom! You hit a bomb and lost your total win.');
       return;
     }
 
     if (type === 'MUL_0_5') {
-      totalWin += betPerClick * 0.5;
-      setMessage('Added 0.5x of your bet to total win.');
+      const gain = betPerClick * 0.5;
+      totalWin += gain;
+      renderCell(btn, type, false, gain, CELL_LABEL[type]);
+      setMessage(`+${formatMoney(gain)} (0.5x of bet) added to total win.`);
     } else if (type === 'MUL_1_5') {
-      totalWin += betPerClick * 1.5;
-      setMessage('Added 1.5x of your bet to total win.');
+      const gain = betPerClick * 1.5;
+      totalWin += gain;
+      renderCell(btn, type, false, gain, CELL_LABEL[type]);
+      setMessage(`+${formatMoney(gain)} (1.5x of bet) added to total win.`);
     } else if (type === 'MUL_2') {
-      totalWin += betPerClick * 2.0;
-      setMessage('Added 2x of your bet to total win.');
+      const gain = betPerClick * 2.0;
+      totalWin += gain;
+      renderCell(btn, type, false, gain, CELL_LABEL[type]);
+      setMessage(`+${formatMoney(gain)} (2x of bet) added to total win.`);
     } else if (type === 'WIN_X2') {
       totalWin *= 2.0;
+      renderCell(btn, type, false);
       setMessage('Total win doubled!');
     } else if (type === 'WIN_X4') {
       totalWin *= 4.0;
+      renderCell(btn, type, false);
       setMessage('Total win x4!');
+    }
+
+    if (totalWin !== prevTotal) {
+      animateTotalWinChange(prevTotal, totalWin);
     }
 
     updateHUD();
 
-    // Auto-collect if all safe cells revealed
-    const safeCells = TOTAL_CELLS - COUNTS.BOMB; // 21
+    const safeCells = TOTAL_CELLS - COUNTS.BOMB; // 13
     if (revealed.size >= safeCells) {
-      // But if somehow a bomb was clicked earlier we'd be out
       collectAndEnd(true);
       return;
     }
@@ -218,8 +273,12 @@
 
   function collectAndEnd(auto = false) {
     if (totalWin > 0) {
+      const collected = totalWin;
       balance += totalWin;
-      setMessage(auto ? `All safe cells revealed. Collected ${formatMoney(totalWin)}!` : `Collected ${formatMoney(totalWin)}.` , 'success');
+      setMessage(
+        auto ? `All safe cells revealed. Collected ${formatMoney(collected)}!` : `Collected ${formatMoney(collected)}.`,
+        'success'
+      );
       totalWin = 0.0;
     } else {
       setMessage('Nothing to collect.');
@@ -227,16 +286,41 @@
     endRound();
   }
 
+  // Grid fit to viewport/main area
+  function fitGridToMain() {
+    const mainEl = document.querySelector('main');
+    if (!mainEl) return;
+    const style = getComputedStyle(gridEl);
+    const gap = parseInt(style.gap || '10', 10) || 10;
+    const cols = GRID_SIZE;
+    const rows = GRID_SIZE;
+    const rect = mainEl.getBoundingClientRect();
+    const maxWidth = rect.width;
+    const maxHeight = rect.height;
+    const cellByWidth = Math.floor((maxWidth - (cols - 1) * gap) / cols);
+    const cellByHeight = Math.floor((maxHeight - (rows - 1) * gap) / rows);
+    const cellSize = Math.max(0, Math.min(cellByWidth, cellByHeight));
+
+    const gridWidth = cellSize * cols + (cols - 1) * gap;
+    const gridHeight = cellSize * rows + (rows - 1) * gap;
+    gridEl.style.width = `${gridWidth}px`;
+    gridEl.style.height = `${gridHeight}px`;
+  }
+
+  window.addEventListener('resize', fitGridToMain);
+
   // Controls
   betPlusEl.addEventListener('click', () => {
     const step = parseFloat(betInputEl.step || '0.10');
     betPerClick = Math.min(999999, roundToTwo(betPerClick + step));
     updateHUD();
+    fitGridToMain();
   });
   betMinusEl.addEventListener('click', () => {
     const step = parseFloat(betInputEl.step || '0.10');
     betPerClick = Math.max(minBet(), roundToTwo(betPerClick - step));
     updateHUD();
+    fitGridToMain();
   });
   betInputEl.addEventListener('change', () => {
     const val = parseFloat(betInputEl.value);
@@ -244,6 +328,7 @@
       betPerClick = roundToTwo(val);
     }
     updateHUD();
+    fitGridToMain();
   });
 
   function roundToTwo(n) { return Math.round(n * 100) / 100; }
@@ -253,9 +338,7 @@
     collectAndEnd(false);
   });
 
-  newRoundBtn.addEventListener('click', () => {
-    beginRound();
-  });
+  newRoundBtn.addEventListener('click', () => { beginRound(); });
 
   // Initialize
   beginRound();
