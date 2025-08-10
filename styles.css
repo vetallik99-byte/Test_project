@@ -87,7 +87,7 @@ button.primary:active, button.secondary:active { transform: translateY(1px) scal
 
 main { flex: 1; display: grid; place-items: center; min-height: 0; }
 .grid {
-  margin-top: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  margin-top: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
 }
 .cell {
   position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 12px; border: 1px solid var(--border);

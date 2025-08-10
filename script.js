@@ -1,15 +1,14 @@
 (function () {
-  const GRID_SIZE = 4;
-  const TOTAL_CELLS = GRID_SIZE * GRID_SIZE; // 16
+  const GRID_SIZE = 5;
+  const TOTAL_CELLS = GRID_SIZE * GRID_SIZE; // 25
 
-  // Distribution counts per spec (sum to 16)
+  // Distribution per spec (base layout sums to 25)
   const COUNTS = {
-    BOMB: 3,
-    MUL_0_5: 4, // neutral
-    MUL_1_5: 4, // gold
-    MUL_2: 3,   // gold
-    WIN_X2: 1,  // light blue lightning
-    WIN_X4: 1,  // light blue lightning
+    BOMB: 6,
+    MUL_0_5: 5,
+    MUL_1_5: 10, // may be replaced by 1 with second global 20% chance
+    MUL_2: 3,
+    WIN_X2: 1,   // guaranteed global x2 tile
   };
 
   const CELL_LABEL = {
@@ -18,7 +17,6 @@
     MUL_1_5: '1.5x',
     MUL_2: '2x',
     WIN_X2: '×2',
-    WIN_X4: '×4',
   };
 
   const CELL_CLASS = {
@@ -27,7 +25,6 @@
     MUL_1_5: 'gold',
     MUL_2: 'gold',
     WIN_X2: 'bonus',
-    WIN_X4: 'bonus',
   };
 
   // State
@@ -38,6 +35,7 @@
   let revealed = new Set();
   let grid = [];
   let isAnimatingTotalWin = false;
+  let globalStack = 1.0; // 1, 2, or 4
 
   // Elements
   const gridEl = document.getElementById('grid');
@@ -65,10 +63,17 @@
     items.push(...Array(COUNTS.MUL_0_5).fill('MUL_0_5'));
     items.push(...Array(COUNTS.MUL_1_5).fill('MUL_1_5'));
     items.push(...Array(COUNTS.MUL_2).fill('MUL_2'));
-    items.push(...Array(COUNTS.WIN_X2).fill('WIN_X2'));
-    items.push(...Array(COUNTS.WIN_X4).fill('WIN_X4'));
+    // Guaranteed one global x2
+    items.push('WIN_X2');
+
+    // 20% chance to add a second global by replacing one 1.5x
+    if (Math.random() < 0.2) {
+      const idx = items.findIndex((t) => t === 'MUL_1_5');
+      if (idx !== -1) items[idx] = 'WIN_X2';
+    }
+
     if (items.length !== TOTAL_CELLS) {
-      console.warn('Grid counts do not add up to 16. Current:', items.length);
+      console.warn('Grid counts do not add up to 25. Current:', items.length);
     }
     return shuffle(items);
   }
@@ -124,6 +129,7 @@
     grid = buildGrid();
     revealed = new Set();
     totalWin = 0.0;
+    globalStack = 1.0;
     roundOver = false;
     setMessage('Good luck!');
     renderGrid();
@@ -152,7 +158,7 @@
 
     if (type === 'BOMB') {
       inner.textContent = CELL_LABEL[type];
-    } else if (type === 'WIN_X2' || type === 'WIN_X4') {
+    } else if (type === 'WIN_X2') {
       inner.textContent = CELL_LABEL[type];
     } else {
       inner.textContent = '';
@@ -256,28 +262,28 @@
     }
 
     if (type === 'MUL_0_5') {
-      const gain = betPerClick * 0.5;
+      const base = 0.5;
+      const gain = betPerClick * base * globalStack;
       totalWin += gain;
       renderCell(btn, type, false, gain, CELL_LABEL[type]);
-      setMessage(`+${formatMoney(gain)} (0.5x of bet) added to total win.`);
+      setMessage(`+${formatMoney(gain)} added (${base}x × global ${globalStack}x).`);
     } else if (type === 'MUL_1_5') {
-      const gain = betPerClick * 1.5;
+      const base = 1.5;
+      const gain = betPerClick * base * globalStack;
       totalWin += gain;
       renderCell(btn, type, false, gain, CELL_LABEL[type]);
-      setMessage(`+${formatMoney(gain)} (1.5x of bet) added to total win.`);
+      setMessage(`+${formatMoney(gain)} added (${base}x × global ${globalStack}x).`);
     } else if (type === 'MUL_2') {
-      const gain = betPerClick * 2.0;
+      const base = 2.0;
+      const gain = betPerClick * base * globalStack;
       totalWin += gain;
       renderCell(btn, type, false, gain, CELL_LABEL[type]);
-      setMessage(`+${formatMoney(gain)} (2x of bet) added to total win.`);
+      setMessage(`+${formatMoney(gain)} added (${base}x × global ${globalStack}x).`);
     } else if (type === 'WIN_X2') {
-      totalWin *= 2.0;
+      // Global multiplier stack increases for future additive gains only
+      globalStack = Math.min(4, globalStack * 2);
       renderCell(btn, type, false);
-      setMessage('Total win doubled!');
-    } else if (type === 'WIN_X4') {
-      totalWin *= 4.0;
-      renderCell(btn, type, false);
-      setMessage('Total win x4!');
+      setMessage(`Global multiplier increased! Now ×${globalStack}.`);
     }
 
     if (totalWin !== prevTotal) {
@@ -286,7 +292,7 @@
 
     updateHUD();
 
-    const safeCells = TOTAL_CELLS - COUNTS.BOMB; // 13
+    const safeCells = TOTAL_CELLS - COUNTS.BOMB; // 19 safe cells
     if (revealed.size >= safeCells) {
       collectAndEnd(true);
       return;
@@ -327,10 +333,8 @@
     const gridHeight = cellSize * rows + (rows - 1) * gap;
     gridEl.style.width = `${gridWidth}px`;
     gridEl.style.height = `${gridHeight}px`;
-    // Set CSS var for responsive font sizing
     gridEl.style.setProperty('--cell-size', `${cellSize}px`);
 
-    // Refit existing amounts on resize
     requestAnimationFrame(() => {
       document.querySelectorAll('.cell-amount').forEach((el) => {
         const amountEl = el;
