@@ -1,14 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Casino Minesweeper</title>
-    <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-    <h1>Casino Minesweeper</h1>
-    <div id="game"></div>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <h1>Casino Minesweeper</h1>
+      </header>
+
+      <section class="hud">
+        <div class="hud-group">
+          <div class="hud-item">
+            <label>Balance</label>
+            <div id="balance" class="value">$1,000.00</div>
+          </div>
+          <div class="hud-item">
+            <label>Total Win</label>
+            <div id="totalWin" class="value">$0.00</div>
+          </div>
+          <div class="hud-item">
+            <label for="betInput">Bet per Click</label>
+            <div class="bet-input">
+              <button id="betMinus" aria-label="Decrease bet">−</button>
+              <input id="betInput" type="number" min="0.10" step="0.10" value="10.00" />
+              <button id="betPlus" aria-label="Increase bet">+</button>
+            </div>
+          </div>
+          <div class="hud-item actions">
+            <button id="collectBtn" class="primary">Collect</button>
+            <button id="newRoundBtn" class="secondary">New Round</button>
+          </div>
+        </div>
+        <div id="message" class="message" aria-live="polite"></div>
+      </section>
+
+      <main>
+        <div id="grid" class="grid" role="grid" aria-label="5 by 5 game grid"></div>
+      </main>
+
+      <footer class="footer">
+        <small>
+          Revealing a cell deducts your bet from balance. Hitting a bomb ends the round and loses your total win. Collect to bank your total win and end the round.
+        </small>
+      </footer>
+    </div>
+
     <script src="script.js"></script>
-</body>
+  </body>
 </html>
