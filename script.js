@@ -132,6 +132,7 @@
     globalStack = 1.0;
     roundOver = false;
     setMessage('Good luck!');
+    document.body.classList.remove('energized');
     renderGrid();
     updateHUD();
   }
@@ -212,9 +213,10 @@
   }
 
   function animateTotalWinChange(fromVal, toVal) {
-    const duration = 500;
+    const duration = document.body.classList.contains('energized') ? 900 : 500;
     const start = performance.now();
     totalWinEl.classList.add('totalwin-pulse');
+    totalWinEl.classList.add('tw-counting');
     isAnimatingTotalWin = true;
 
     function step(now) {
@@ -227,6 +229,7 @@
       } else {
         totalWinEl.textContent = formatMoney(toVal);
         totalWinEl.classList.remove('totalwin-pulse');
+        totalWinEl.classList.remove('tw-counting');
         isAnimatingTotalWin = false;
         updateHUD();
       }
@@ -284,6 +287,10 @@
       globalStack = Math.min(4, globalStack * 2);
       renderCell(btn, type, false);
       setMessage(`Global multiplier increased! Now ×${globalStack}.`);
+      // Turn on energized UI when at least ×2
+      if (globalStack >= 2 && !document.body.classList.contains('energized')) {
+        document.body.classList.add('energized');
+      }
     }
 
     if (totalWin !== prevTotal) {

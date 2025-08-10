@@ -125,6 +125,47 @@ main { flex: 1; display: grid; place-items: center; min-height: 0; }
 .totalwin-pulse { animation: twPulse 360ms ease-out; }
 @keyframes twPulse { 0% { transform: scale(1); } 35% { transform: scale(1.08); } 100% { transform: scale(1); } }
 
+/* Blinking while counting */
+.tw-counting { animation: twBlink 900ms ease-in-out infinite; }
+@keyframes twBlink { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+
+/* Energized theme after global multiplier applied */
+.energized .hud-item.totalwin .value {
+  color: #93c5fd;
+  text-shadow: 0 0 6px rgba(147, 197, 253, 0.8), 0 0 16px rgba(59, 130, 246, 0.5);
+}
+
+/* Open additive cells glow blue when energized */
+.energized .cell.open.gold,
+.energized .cell.open.neutral {
+  border-color: rgba(147, 197, 253, 0.8);
+  color: #cfe3ff;
+  box-shadow: 0 0 0 1px rgba(147, 197, 253, 0.25) inset, 0 8px 26px rgba(59, 130, 246, 0.35);
+}
+.energized .cell.open.gold .cell-amount,
+.energized .cell.open.neutral .cell-amount,
+.energized .cell.open.gold .cell-mult,
+.energized .cell.open.neutral .cell-mult {
+  color: #dbeafe;
+}
+
+/* Subtle lightning for closed cells when energized */
+.energized .cell:not(.open)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(10px 10px at 15% 20%, rgba(147, 197, 253, 0.15), rgba(0,0,0,0)),
+              radial-gradient(8px 8px at 80% 70%, rgba(147, 197, 253, 0.12), rgba(0,0,0,0));
+  opacity: 0.7;
+  pointer-events: none;
+  animation: sparkles 2.2s infinite ease-in-out alternate;
+}
+@keyframes sparkles {
+  0% { transform: translateY(0); filter: brightness(1); opacity: 0.6; }
+  50% { transform: translateY(-0.5px); filter: brightness(1.15); opacity: 0.9; }
+  100% { transform: translateY(0.5px); filter: brightness(1); opacity: 0.6; }
+}
+
 .cell .bottom-label { position: static; text-align: center; font-size: 11px; opacity: 0.9; margin-top: 2px; }
 
 .cell.bomb {
