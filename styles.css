@@ -108,7 +108,7 @@ main { flex: 1; display: grid; place-items: center; min-height: 0; }
 }
 .cell-amount {
   font-size: clamp(12px, calc(var(--cell-size, 64px) * 0.26), 24px); font-weight: 800; justify-self: center; align-self: center; line-height: 1;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+  white-space: nowrap; overflow: visible; text-overflow: clip; max-width: 100%; will-change: font-size;
 }
 .cell-mult { font-size: 12px; opacity: 0.85; letter-spacing: 0.6px; justify-self: center; white-space: nowrap; }
 

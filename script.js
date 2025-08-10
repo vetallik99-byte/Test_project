@@ -170,6 +170,9 @@
       wrapper.appendChild(amount);
       wrapper.appendChild(bottom);
       inner.appendChild(wrapper);
+
+      // Ensure amount fits inside the cell
+      requestAnimationFrame(() => fitAmountText(amount, wrapper));
     }
 
     if (!alreadyRevealed) {
@@ -180,6 +183,25 @@
         ],
         { duration: 140, easing: 'ease-out' }
       );
+    }
+  }
+
+  function fitAmountText(amountEl, containerEl) {
+    if (!amountEl || !containerEl) return;
+    // Reset to CSS default first
+    amountEl.style.fontSize = '';
+    const minFontPx = 10;
+    let fontSize = parseFloat(getComputedStyle(amountEl).fontSize) || 16;
+    const maxWidth = containerEl.getBoundingClientRect().width - 4; // padding safety
+
+    // Reduce font size until it fits
+    let guard = 0;
+    while (guard < 30) {
+      const w = amountEl.getBoundingClientRect().width;
+      if (w <= maxWidth || fontSize <= minFontPx) break;
+      fontSize -= 1;
+      amountEl.style.fontSize = fontSize + 'px';
+      guard += 1;
     }
   }
 
@@ -307,6 +329,15 @@
     gridEl.style.height = `${gridHeight}px`;
     // Set CSS var for responsive font sizing
     gridEl.style.setProperty('--cell-size', `${cellSize}px`);
+
+    // Refit existing amounts on resize
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.cell-amount').forEach((el) => {
+        const amountEl = el;
+        const containerEl = amountEl.closest('.cell-content');
+        if (containerEl) fitAmountText(amountEl, containerEl);
+      });
+    });
   }
 
   window.addEventListener('resize', fitGridToMain);
