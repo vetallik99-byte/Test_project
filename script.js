@@ -247,6 +247,26 @@
     if (roundOver) { beginRound(); return; }
     const btn = evt.currentTarget;
     const idx = parseInt(btn.dataset.index, 10);
+    if (revealed.has(idx) || btn.classList.contains('pending')) return;
+
+    const shouldDelay = revealed.size >= 2 && Math.random() < 0.3;
+
+    if (shouldDelay) {
+      btn.classList.add('pending', 'wiggle');
+      setTimeout(() => {
+        btn.classList.remove('wiggle');
+        btn.classList.remove('pending');
+        if (!roundOver && !revealed.has(idx)) {
+          performCellReveal(btn, idx);
+        }
+      }, 400);
+    } else {
+      performCellReveal(btn, idx);
+    }
+  }
+
+  function performCellReveal(btn, idx) {
+    if (roundOver) return;
     if (revealed.has(idx)) return;
 
     if (balance < betPerClick) {
