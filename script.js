@@ -29,6 +29,7 @@
   let balance = 1000.0;
   let betPerClick = 10.0;
   let totalWin = 0.0;
+  let totalBet = 0.0;
   let roundOver = false;
   let revealed = new Set();
   let grid = [];
@@ -42,7 +43,10 @@
   // Elements
   const gridEl = document.getElementById('grid');
   const balanceEl = document.getElementById('balance');
-  const totalWinEl = document.getElementById('totalWin');
+  const grossWinEl = document.getElementById('grossWin');
+  const netWinEl = document.getElementById('netWin');
+  const winValuesEl = document.getElementById('winValues');
+  const totalBetEl = document.getElementById('totalBet');
   const messageEl = document.getElementById('message');
   const betInputEl = document.getElementById('betInput');
   const betPlusEl = document.getElementById('betPlus');
@@ -135,7 +139,12 @@
 
   function updateHUD() {
     balanceEl.textContent = formatMoney(balance);
-    if (!isAnimatingTotalWin) totalWinEl.textContent = formatMoney(totalWin);
+    const netWin = totalWin - totalBet;
+    if (!isAnimatingTotalWin) {
+      if (grossWinEl) grossWinEl.textContent = formatMoney(totalWin);
+      if (netWinEl) netWinEl.textContent = formatMoney(Math.max(0, netWin));
+    }
+    if (totalBetEl) totalBetEl.textContent = formatMoney(totalBet);
     betInputEl.value = betPerClick.toFixed(2);
     updateClosedBetOverlays();
 
@@ -146,6 +155,11 @@
     });
 
     collectBtn.disabled = totalWin <= 0 || roundOver;
+
+    // Win color & clamp when non-positive
+    const positiveWin = netWin > 0;
+    if (grossWinEl) grossWinEl.classList.toggle('win-positive', totalWin > 0);
+    if (netWinEl) netWinEl.classList.toggle('win-positive', positiveWin);
 
     // Lock bet controls after first reveal in a round
     const betLocked = !roundOver && revealed.size > 0;
@@ -194,6 +208,7 @@
     }
     revealed = new Set();
     totalWin = 0.0;
+    totalBet = 0.0;
     globalStack = 1.0;
     roundOver = false;
     setMessage('Good luck!');
@@ -217,7 +232,12 @@
     Array.from(gridEl.children).forEach((c, idx) => {
       const btn = c;
       const type = grid[idx];
-      const label = type === 'WIN_X2' ? `×${globalTierByIndex[idx] || 2}` : undefined;
+      let label;
+      if (type === 'WIN_X2') {
+        label = `×${globalTierByIndex[idx] || 2}`;
+      } else if (type === 'MUL_0_5' || type === 'MUL_1_5' || type === 'MUL_2') {
+        label = CELL_LABEL[type];
+      }
       renderCell(btn, type, revealed.has(idx), undefined, label);
     });
   }
@@ -246,9 +266,10 @@
       const wrapper = document.createElement('div');
       wrapper.className = 'cell-content';
 
+      const showAmount = typeof amountValue === 'number' && Number.isFinite(amountValue);
       const amount = document.createElement('div');
       amount.className = 'cell-amount';
-      amount.textContent = formatMoney(amountValue || 0);
+      amount.textContent = showAmount ? formatMoney(amountValue) : '';
 
       const bottom = document.createElement('div');
       bottom.className = 'bottom-label cell-mult';
@@ -257,8 +278,15 @@
         bottom.classList.add('effective');
       }
 
+      // For mass reveal (no amount), show the multiplier in the center instead
+      if (!showAmount && multLabel) {
+        amount.textContent = multLabel;
+        bottom.textContent = '';
+        bottom.style.display = 'none';
+      }
+
       // If global is active, apply strike + glow (but keep base color until strike)
-      if (globalStack > 1 && amountValue && amountValue > 0) {
+      if (globalStack > 1 && showAmount && amountValue > 0) {
         btn.classList.add('strike');
         amount.classList.add('value-glow');
         bottom.classList.add('value-glow');
@@ -273,7 +301,7 @@
       wrapper.appendChild(bottom);
       inner.appendChild(wrapper);
 
-      // Ensure amount fits inside the cell
+      // Ensure text fits inside the cell (amount or multiplier)
       requestAnimationFrame(() => fitAmountText(amount, wrapper));
     }
 
@@ -310,21 +338,27 @@
   function animateTotalWinChange(fromVal, toVal) {
     const duration = document.body.classList.contains('energized') ? 900 : 500;
     const start = performance.now();
-    totalWinEl.classList.add('totalwin-pulse');
-    totalWinEl.classList.add('tw-counting');
+    if (winValuesEl) {
+      winValuesEl.classList.add('totalwin-pulse');
+      winValuesEl.classList.add('tw-counting');
+    }
     isAnimatingTotalWin = true;
 
     function step(now) {
       const t = Math.min(1, (now - start) / duration);
       const eased = t * (2 - t); // easeOutQuad
-      const val = fromVal + (toVal - fromVal) * eased;
-      totalWinEl.textContent = formatMoney(val);
+      const val = fromVal + (toVal - fromVal) * eased; // gross path
+      if (grossWinEl) grossWinEl.textContent = formatMoney(val);
       if (t < 1) {
         requestAnimationFrame(step);
       } else {
-        totalWinEl.textContent = formatMoney(toVal);
-        totalWinEl.classList.remove('totalwin-pulse');
-        totalWinEl.classList.remove('tw-counting');
+        const finalNet = Math.max(0, toVal - totalBet);
+        if (grossWinEl) grossWinEl.textContent = formatMoney(toVal);
+        if (netWinEl) netWinEl.textContent = formatMoney(finalNet);
+        if (winValuesEl) {
+          winValuesEl.classList.remove('totalwin-pulse');
+          winValuesEl.classList.remove('tw-counting');
+        }
         isAnimatingTotalWin = false;
         updateHUD();
       }
@@ -376,6 +410,7 @@
     }
 
     balance -= betPerClick;
+    totalBet += betPerClick;
 
     const type = grid[idx];
     revealed.add(idx);
