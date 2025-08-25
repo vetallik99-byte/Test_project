@@ -12,7 +12,6 @@
   <body>
     <div class="app">
       <header class="header">
-        <h1>Casino Minesweeper</h1>
       </header>
 
       <section class="hud">
@@ -22,8 +21,12 @@
             <div id="balance" class="value">$1,000.00</div>
           </div>
           <div class="hud-item totalwin">
-            <label>Total Win</label>
-            <div id="totalWin" class="value">$0.00</div>
+            <label>Total Win / Net win</label>
+            <div id="winValues" class="value duo">
+              <span id="grossWin" class="gross">$0.00</span>
+              <span class="sep"> / </span>
+              <span id="netWin" class="net">$0.00</span>
+            </div>
           </div>
           <div class="hud-item">
             <label for="betInput">Bet per Click</label>
