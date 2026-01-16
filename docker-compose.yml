@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:15
+    container_name: miner_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: miner
+    ports:
+      - "5433:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+  backend:
+    build: ./backend
+    container_name: miner_backend
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/miner?sslmode=disable
+    ports:
+      - "8080:8080"
+  frontend:
+    build:
+      context: ./miner
+      target: dev
+    container_name: miner_frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./miner/src:/app/src
+      - ./miner/public:/app/public
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    command: pnpm start
+volumes:
+  dbdata:
