@@ -5,8 +5,7 @@ import styles from "./Button.module.css";
 type Variant = "primary" | "secondary" | "ghost";
 type Size = "sm" | "md" | "lg";
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
   fullWidth?: boolean;

@@ -1,42 +1,47 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import './App.css';
-import type { GameState } from './types';
-import Header from './components/Header';
-import HUD from './components/HUD';
-import GameGrid from './components/GameGrid';
-import Footer from './components/Footer';
-import Tooltip from './components/Tooltip';
-import { PROTOCOL } from './protocol';
+import { useCallback, useEffect, useRef, useState } from "react";
+import "./App.css";
+import Footer from "./components/Footer";
+import GameGrid from "./components/GameGrid";
+import HUD from "./components/HUD";
+import Header from "./components/Header";
+import Tooltip from "./components/Tooltip";
+import { PROTOCOL } from "./protocol";
+import type { Cell, GameState, GlobalMultiplier } from "./types";
 
 function App() {
   const [gameState, setGameState] = useState<GameState>({
     balance: 0,
     netWin: 0,
-    betPerClick: 0,        // renamed from betAmount
+    betPerClick: 0, // renamed from betAmount
     totalWin: 0,
-    totalBet: 0,           // new field
+    totalBet: 0, // new field
     isGameActive: false,
     isEnergized: false,
     isBetLocked: false,
-    message: 'Connecting...',
+    message: "Connecting...",
     cells: [],
-    activeGlobals: [],     // new field
-    globalStack: 1.0,      // new field
-    bombCount: 0,          // new field
-    revealedCount: 0       // new field
+    activeGlobals: [], // new field
+    globalStack: 1.0, // new field
+    bombCount: 0, // new field
+    revealedCount: 0, // new field
   });
 
-  const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, content: '' });
+  const [tooltip, setTooltip] = useState({
+    visible: false,
+    x: 0,
+    y: 0,
+    content: "",
+  });
   const wsRef = useRef<WebSocket | null>(null);
 
   // connect websocket
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8080/ws');
-    ws.binaryType = 'arraybuffer';
+    const ws = new WebSocket("ws://localhost:8080/ws");
+    ws.binaryType = "arraybuffer";
     wsRef.current = ws;
 
     ws.onopen = () => {
-      setGameState(prev => ({ ...prev, message: 'Connected. Click Start.' }));
+      setGameState((prev) => ({ ...prev, message: "Connected. Click Start." }));
     };
 
     ws.onmessage = (ev) => {
@@ -47,15 +52,17 @@ function App() {
       } else if (type === PROTOCOL.MSG.ERROR) {
         const len = buf[1];
         const msg = new TextDecoder().decode(buf.slice(2, 2 + len));
-        setGameState(prev => ({ ...prev, message: msg }));
+        setGameState((prev) => ({ ...prev, message: msg }));
       }
     };
 
     ws.onclose = () => {
-      setGameState(prev => ({ ...prev, message: 'Disconnected' }));
+      setGameState((prev) => ({ ...prev, message: "Disconnected" }));
     };
 
-    return () => { ws.close(); };
+    return () => {
+      ws.close();
+    };
   }, []);
 
   const parseState = (buf: Uint8Array) => {
@@ -82,18 +89,18 @@ function App() {
 
     // Parse active globals
     let off = msgEnd;
-    const activeGlobals: any[] = [];
+    const activeGlobals: GlobalMultiplier[] = [];
     for (let i = 0; i < activeGlobalsCount; i++) {
       activeGlobals.push({
         tier: buf[off],
         remaining: buf[off + 1],
-        cellIndex: buf[off + 2]
+        cellIndex: buf[off + 2],
       });
       off += 3;
     }
 
     // Parse cells
-    const cells: any[] = [];
+    const cells: Cell[] = [];
     for (let i = 0; i < cellCount; i++) {
       const cflags = buf[off];
       const amount = buf[off + 1] | (buf[off + 2] << 8);
@@ -102,7 +109,7 @@ function App() {
       const globalTier = buf[off + 6];
       cells.push({
         id: i,
-        type: (cflags >> 4) & 0x07,  // 3 bits for type (0-4)
+        type: (cflags >> 4) & 0x07, // 3 bits for type (0-4)
         amount,
         multiplier: multRaw / 100,
         isOpen: (cflags & 1) !== 0,
@@ -142,31 +149,32 @@ function App() {
 
   const startGame = useCallback(() => send(new Uint8Array([PROTOCOL.OPCODES.START])), [send]);
   const cashOut = useCallback(() => send(new Uint8Array([PROTOCOL.OPCODES.CASH_OUT])), [send]);
-  const adjustBet = useCallback((delta: number) => {
-    const buf = new ArrayBuffer(3);
-    const view = new DataView(buf);
-    view.setUint8(0, PROTOCOL.OPCODES.ADJUST_BET);
-    view.setInt16(1, delta, true);
-    send(new Uint8Array(buf));
-  }, [send]);
-  const handleCellClick = useCallback((id: number) => {
-    send(new Uint8Array([PROTOCOL.OPCODES.OPEN_CELL, id]));
-  }, [send]);
+  const adjustBet = useCallback(
+    (delta: number) => {
+      const buf = new ArrayBuffer(3);
+      const view = new DataView(buf);
+      view.setUint8(0, PROTOCOL.OPCODES.ADJUST_BET);
+      view.setInt16(1, delta, true);
+      send(new Uint8Array(buf));
+    },
+    [send],
+  );
+  const handleCellClick = useCallback(
+    (id: number) => {
+      send(new Uint8Array([PROTOCOL.OPCODES.OPEN_CELL, id]));
+    },
+    [send],
+  );
 
   const showTooltip = useCallback((x: number, y: number, content: string) => {
     setTooltip({ visible: true, x, y, content });
   }, []);
-  const hideTooltip = useCallback(() => setTooltip(t => ({ ...t, visible: false })), []);
+  const hideTooltip = useCallback(() => setTooltip((t) => ({ ...t, visible: false })), []);
 
   return (
-    <div className={`app ${gameState.isEnergized ? 'energized' : ''}`}>
+    <div className={`app ${gameState.isEnergized ? "energized" : ""}`}>
       <Header />
-      <HUD
-        gameState={gameState}
-        onAdjustBet={adjustBet}
-        onStart={startGame}
-        onCashOut={cashOut}
-      />
+      <HUD gameState={gameState} onAdjustBet={adjustBet} onStart={startGame} onCashOut={cashOut} />
       <main>
         <GameGrid
           cells={gameState.cells}
@@ -176,12 +184,7 @@ function App() {
         />
       </main>
       <Footer />
-      <Tooltip
-        visible={tooltip.visible}
-        x={tooltip.x}
-        y={tooltip.y}
-        content={tooltip.content}
-      />
+      <Tooltip visible={tooltip.visible} x={tooltip.x} y={tooltip.y} content={tooltip.content} />
     </div>
   );
 }

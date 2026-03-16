@@ -1,5 +1,5 @@
-import type { Cell } from '../types';
-import GameCell from './GameCell';
+import type { Cell } from "../types";
+import GameCell from "./GameCell";
 
 interface GameGridProps {
   cells: Cell[];
@@ -8,12 +8,7 @@ interface GameGridProps {
   onHideTooltip: () => void;
 }
 
-const GameGrid = ({
-  cells,
-  onCellClick,
-  onShowTooltip,
-  onHideTooltip
-}: GameGridProps) => {
+const GameGrid = ({ cells, onCellClick, onShowTooltip, onHideTooltip }: GameGridProps) => {
   return (
     <div className="grid">
       {cells.map((cell) => (

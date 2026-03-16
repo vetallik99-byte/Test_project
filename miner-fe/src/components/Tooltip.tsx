@@ -10,10 +10,10 @@ const Tooltip = ({ visible, x, y, content }: TooltipProps) => {
 
   return (
     <div
-      className={`tooltip ${visible ? 'visible' : ''}`}
+      className={`tooltip ${visible ? "visible" : ""}`}
       style={{
         left: x,
-        top: y
+        top: y,
       }}
     >
       {content}
