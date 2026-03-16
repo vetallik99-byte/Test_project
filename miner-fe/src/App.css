@@ -340,6 +340,7 @@ main {
 }
 
 .cell-amount {
+  /*TODO: We don't have cell-size variable find out what size it should be*/
   font-size: clamp(12px, calc(var(--cell-size, 64px) * 0.26), 24px);
   font-weight: 800;
   justify-self: center;
